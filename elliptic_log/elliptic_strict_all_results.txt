@@ -1,0 +1,63 @@
+Elliptic 严格协议实验总表
+
+统一实验协议：
+- 数据：elliptic_of_amnet_strict
+- StandardScaler 仅在训练集拟合
+- DTBE 等监督式编码仅使用训练集及训练标签拟合
+- checkpoint 和 early stopping 仅使用验证集
+- 测试集仅在最佳 checkpoint 确定后评估一次
+- seeds：42、43、44、45、46
+- max_epochs：50
+- patience：25
+- 指标：五次均值 ± 样本标准差
+
+1. GraphSAGE
+AP = 67.62% ± 4.71%
+AUC = 86.40% ± 0.93%
+Macro-F1 = 84.54% ± 2.25%
+Recall = 61.18% ± 4.24%
+Precision = 85.79% ± 12.65%
+
+2. FraNAD结构，不使用DTBE
+AP = 61.37% ± 9.41%
+AUC = 85.50% ± 1.09%
+Macro-F1 = 83.17% ± 2.61%
+Recall = 62.35% ± 1.06%
+Precision = 76.39% ± 11.31%
+
+3. GraphSAGE + DTBE
+AP = 77.21% ± 0.87%
+AUC = 90.63% ± 0.53%
+Macro-F1 = 83.39% ± 1.65%
+Recall = 71.02% ± 0.40%
+Precision = 67.29% ± 5.76%
+
+4. 完整FraNAD结构 + DTBE
+AP = 73.56% ± 4.54%
+AUC = 91.18% ± 1.35%
+Macro-F1 = 82.41% ± 2.56%
+Recall = 72.74% ± 0.49%
+Precision = 63.00% ± 7.65%
+
+5. FraNAD + DTBE，去除risk_layer
+AP = 74.39% ± 2.81%
+AUC = 91.26% ± 1.29%
+Macro-F1 = 83.87% ± 1.59%
+Recall = 70.62% ± 1.60%
+Precision = 69.50% ± 6.79%
+
+6. FraNAD + DTBE，去除动态分组与注意力融合
+AP = 77.11% ± 1.88%
+AUC = 90.67% ± 0.36%
+Macro-F1 = 83.15% ± 2.97%
+Recall = 71.30% ± 0.73%
+Precision = 66.67% ± 9.62%
+
+阶段性结论：
+1. DTBE是目前最明确且最稳定的性能贡献。
+2. GraphSAGE加入DTBE后，AP和AUC均明显提高。
+3. 完整FraNAD结构在AUC和Recall上略高，但AP、Macro-F1和稳定性没有优势。
+4. 删除risk_layer后，AP、Macro-F1和Precision提高，Recall下降。
+5. 删除动态分组与注意力融合后，AP提高，AUC和Recall小幅下降。
+6. 当前证据不支持risk_layer和动态分组能够全面、稳定提高所有指标。
+7. 后续论文应弱化“各模块均显著有效”的表述。
