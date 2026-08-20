@@ -1,0 +1,22 @@
+dname: tfinance
+project: dga_reproduction
+model: dga
+
+# 模型超参数
+bin_encoding: True
+n_head: 1
+n_hidden: 64
+p: 0.3
+k: 4
+z: 0.025
+seed: 42
+
+# 训练超参数
+bs: 64
+lr: 1e-3
+weight_decay: 5e-4
+max_epochs: 50
+patience: 10
+usegpu: True
+gpuid: 0
+nowandb: False

@@ -1,0 +1,686 @@
+# 内置
+import os
+import warnings
+# dgl
+import dgl
+import hydra
+# 机器学习
+import numpy as np
+# torch
+import torch
+import torch.nn.functional as F
+# 工程化、自建和其他
+import wandb
+from dgl import function as fn
+from dgl.data.utils import load_graphs
+from dgl.utils import expand_as_pair, dgl_warning
+from omegaconf import DictConfig, OmegaConf
+# pl
+from pytorch_lightning import (LightningDataModule, LightningModule, Trainer)
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, Timer
+from pytorch_lightning.loggers.wandb import WandbLogger
+from sklearn.metrics import (roc_auc_score, average_precision_score)
+from torch import nn
+from tqdm import tqdm
+
+from myutils import describe, mask_to_index, set_all_seed, cal_metrics, bin_encoding2,woe_encoding,iv_encoding
+
+warnings.filterwarnings("ignore")
+print(os.getcwd())
+
+
+class IntraConv_single(nn.Module):
+    def __init__(self,
+                 in_feats,
+                 out_feats,
+                 aggregator_type,
+                 feat_drop=0.,
+                 add_self=True,
+                 bias=True,
+                 norm=None,
+                 activation=None):
+        super(IntraConv_single, self).__init__()
+
+        self._in_src_feats, self._in_dst_feats = expand_as_pair(in_feats)
+        self._out_feats = out_feats
+        self._aggre_type = aggregator_type
+        self.norm = norm
+        self.add_self = add_self
+        self.feat_drop = nn.Dropout(feat_drop)
+        self.activation = activation
+        # aggregator type: mean
+        self.fc_self = nn.Linear(self._in_dst_feats, out_feats, bias=bias)
+        self.fc_neigh = nn.Linear(self._in_src_feats, out_feats, bias=False)
+        self.bias = nn.parameter.Parameter(torch.zeros(self._out_feats))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        gain = nn.init.calculate_gain('relu')
+        nn.init.xavier_uniform_(self.fc_neigh.weight, gain=gain)
+
+    def _compatibility_check(self):
+        """Address the backward compatibility issue brought by #2747"""
+        if not hasattr(self, 'bias'):
+            dgl_warning("You are loading a GraphSAGE model trained from a old version of DGL, "
+                        "DGL automatically convert it to be compatible with latest version.")
+            bias = self.fc_neigh.bias
+            self.fc_neigh.bias = None
+            if hasattr(self, 'fc_self'):
+                if bias is not None:
+                    bias = bias + self.fc_self.bias
+                    self.fc_self.bias = None
+            self.bias = bias
+
+    def forward(self, graph, feat, etype=None, edge_weight=None):
+        self._compatibility_check()
+        with graph.local_scope():
+            if isinstance(feat, tuple):
+                feat_src = self.feat_drop(feat[0])
+                feat_dst = self.feat_drop(feat[1])
+            else:
+                feat_src = feat_dst = self.feat_drop(feat)
+                if graph.is_block:
+                    feat_dst = feat_src[:graph.number_of_dst_nodes()]
+            msg_fn = fn.copy_u('h', 'm')
+            if edge_weight is not None:
+                assert edge_weight.shape[0] == graph.number_of_edges()
+                graph.srcdata['degree'] = torch.ones((graph.num_src_nodes(), 1)).to(feat.device)
+                graph.edata['_edge_weight'] = edge_weight
+                msg_fn1 = fn.u_mul_e('h', '_edge_weight', 'm')
+                msg_fn2 = fn.u_mul_e('degree', '_edge_weight', 'degree')
+
+            h_self = feat_dst
+
+            # Handle the case of graphs without edges
+            if graph.number_of_edges() == 0:
+                graph.dstdata['neigh'] = torch.zeros(
+                    feat_dst.shape[0], self._in_src_feaddts).to(feat_dst)
+
+            # Determine whether to apply linear transformation before message passing A(XW)
+            lin_before_mp = self._in_src_feats > self._out_feats
+
+            # Message Passing
+            graph.srcdata['h'] = self.fc_neigh(feat_src) if lin_before_mp else feat_src
+            if edge_weight is not None:
+                graph.update_all(msg_fn1, fn.sum('m', 'neigh'))
+                graph.update_all(msg_fn2, fn.sum('degree', 'degree'))
+                h_neigh = graph.dstdata['neigh'] / (graph.dstdata['degree'] + torch.FloatTensor([1e-8]).to(feat.device))
+            else:
+                graph.update_all(msg_fn, fn.mean('m', 'neigh'))
+                h_neigh = graph.dstdata['neigh']
+
+            # h_neigh = torch.concat([h_neigh_mean,h_neigh_sum],axis=-1)
+            if not lin_before_mp:
+                h_neigh = self.fc_neigh(h_neigh)
+            h_self = self.fc_self(h_self)
+            if self.add_self:
+                rst = h_self + h_neigh
+            else:
+                rst = h_neigh
+            # rst = torch.concat([rst,graph.dstdata['degree']],-1)
+            # bias term
+            if self.bias is not None:
+                rst = rst + self.bias
+            # activation
+            if self.activation is not None:
+                rst = self.activation(rst)
+            # normalization
+            if self.norm is not None:
+                rst = self.norm(rst)
+            return rst  # , h_self
+
+
+class IntraConv_multi(nn.Module):
+    def __init__(self,
+                 in_feats,
+                 out_feats,
+                 aggregator_type,
+                 feat_drop=0.,
+                 add_self=True,
+                 bias=True,
+                 norm=None,
+                 activation=None):
+        super(IntraConv_multi, self).__init__()
+
+        self._in_src_feats, self._in_dst_feats = expand_as_pair(in_feats)
+        self._out_feats = out_feats
+        self._aggre_type = aggregator_type
+        self.norm = norm
+        self.add_self = add_self
+        self.feat_drop = nn.Dropout(feat_drop)
+        self.activation = activation
+        # aggregator type: mean
+        self.fc_self = nn.Linear(self._in_dst_feats, out_feats, bias=bias)
+        self.fc_neigh = nn.Linear(self._in_src_feats, out_feats, bias=False)
+        self.bias = nn.parameter.Parameter(torch.zeros(self._out_feats))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        gain = nn.init.calculate_gain('relu')
+        nn.init.xavier_uniform_(self.fc_neigh.weight, gain=gain)
+
+    def _compatibility_check(self):
+        """Address the backward compatibility issue brought by #2747"""
+        if not hasattr(self, 'bias'):
+            dgl_warning("You are loading a GraphSAGE model trained from a old version of DGL, "
+                        "DGL automatically convert it to be compatible with latest version.")
+            bias = self.fc_neigh.bias
+            self.fc_neigh.bias = None
+            if hasattr(self, 'fc_self'):
+                if bias is not None:
+                    bias = bias + self.fc_self.bias
+                    self.fc_self.bias = None
+            self.bias = bias
+
+    def forward(self, graph, feat, etype, edge_weight=None):
+        self._compatibility_check()
+        with graph.local_scope():
+            if isinstance(feat, tuple):
+                feat_src = self.feat_drop(feat[0])
+                feat_dst = self.feat_drop(feat[1])
+            else:
+                feat_src = feat_dst = self.feat_drop(feat)
+                if graph.is_block:
+                    feat_dst = feat_src[:graph.number_of_dst_nodes()]
+
+            if edge_weight is not None:
+                assert edge_weight.shape[0] == graph.number_of_edges(etype=etype)
+                graph.srcdata['degree'] = torch.ones((graph.num_src_nodes(), 1)).to(feat.device)
+                graph.edata['_edge_weight'] = {etype: edge_weight}
+                msg_fn1 = fn.u_mul_e('h', '_edge_weight', 'm')
+                msg_fn2 = fn.u_mul_e('degree', '_edge_weight', 'degree')
+
+            h_self = feat_dst
+
+            # Handle the case of graphs without edges
+            if graph.number_of_edges() == 0:
+                graph.dstdata['neigh'] = torch.zeros(
+                    feat_dst.shape[0], self._in_src_feats).to(feat_dst)
+
+            # Determine whether to apply linear transformation before message passing A(XW)
+            lin_before_mp = self._in_src_feats > self._out_feats
+            msg_fn = fn.copy_u('h', 'm')
+            # Message Passing
+            graph.srcdata['h'] = self.fc_neigh(feat_src) if lin_before_mp else feat_src
+            if edge_weight is not None:
+                graph.multi_update_all({
+                    etype: (msg_fn1, fn.sum('m', 'neigh'))
+                },
+                    'sum'
+                )
+                graph.multi_update_all({
+                    etype: (msg_fn2, fn.sum('degree', 'degree'))
+                },
+                    'sum'
+                )
+                h_neigh = graph.dstdata['neigh'] / (graph.dstdata['degree'] + torch.FloatTensor([1e-8]).to(feat.device))
+            else:
+                graph.multi_update_all({
+                    etype: (msg_fn, fn.mean('m', 'neigh'))
+                },
+                    'sum'
+                )
+
+                h_neigh = graph.dstdata['neigh']
+
+            # h_neigh = torch.concat([h_neigh_mean,h_neigh_sum],axis=-1)
+            if not lin_before_mp:
+                h_neigh = self.fc_neigh(h_neigh)
+            h_self = self.fc_self(h_self)
+            if self.add_self:
+                rst = h_self + h_neigh
+            else:
+                rst = h_neigh
+            # rst = torch.concat([rst,graph.dstdata['degree']],-1)
+            # bias term
+            if self.bias is not None:
+                rst = rst + self.bias
+            # activation
+            if self.activation is not None:
+                rst = self.activation(rst)
+            # normalization
+            if self.norm is not None:
+                rst = self.norm(rst)
+            return rst  # , h_self
+
+
+# 构建dataloader
+class DataModule(LightningDataModule):
+    def __init__(self, graph, batch_size, n_classes):
+        super().__init__()
+
+        trn_sampler = dgl.dataloading.NeighborSampler(
+            [-1]  # , prefetch_node_feats=["feat"], prefetch_labels=["label"]
+        )
+        val_sampler = dgl.dataloading.NeighborSampler(
+            [-1]  # , prefetch_node_feats=["feat"], prefetch_labels=["label"]
+        )
+        self.g = graph
+        self.trn_idx, self.val_idx, self.tst_idx = mask_to_index(graph.ndata['trn_msk']), mask_to_index(
+            graph.ndata['val_msk']), mask_to_index(graph.ndata['tst_msk'])
+        self.trn_sampler = trn_sampler
+        self.val_sampler = val_sampler
+        self.batch_size = batch_size
+        self.n_classes = n_classes
+
+    def train_dataloader(self):
+        loader = dgl.dataloading.DataLoader(
+            self.g,
+            self.trn_idx,
+            self.trn_sampler,
+            device="cpu",
+            batch_size=self.batch_size,
+            shuffle=True,
+            drop_last=False,
+            use_uva=False,
+            num_workers=0,
+        )
+        return loader
+
+    def val_dataloader(self):
+        loader = dgl.dataloading.DataLoader(
+            self.g,
+            torch.arange(self.g.num_nodes()),
+            self.val_sampler,
+            device="cpu",
+            batch_size=self.batch_size,
+            shuffle=False,
+            drop_last=False,
+            use_uva=False,
+            num_workers=0,
+        )
+        return loader
+
+
+
+class DGA(nn.Module):
+    """One-layer GCN baseline with the same encoder and classifier."""
+
+    def __init__(
+        self,
+        in_feats,
+        n_hidden,
+        num_nodes,
+        n_classes,
+        n_etypes,
+        p=0.3,
+        n_head=1,
+        unclear_up=0.1,
+        unclear_down=0.1,
+    ):
+        super().__init__()
+
+        self.n_hidden = n_hidden
+        self.n_classes = n_classes
+        self.n_etypes = n_etypes
+
+        # Keep the feature encoder identical to the GraphSAGE baseline.
+        self.emb_layer = nn.Sequential(
+            nn.Dropout(p),
+            nn.Linear(in_feats, n_hidden),
+            nn.BatchNorm1d(n_hidden),
+            nn.ReLU(),
+            nn.Dropout(p),
+            nn.Linear(n_hidden, n_hidden),
+            nn.BatchNorm1d(n_hidden),
+            nn.ReLU(),
+        )
+
+        # Relation-specific normalized GCN transforms.
+        # Self-information is included inside the normalized aggregation,
+        # without modifying the stored graph or its split-isolation edges.
+        self.gcn_linears = nn.ModuleList(
+            [
+                nn.Linear(n_hidden, n_hidden, bias=False)
+                for _ in range(n_etypes)
+            ]
+        )
+        self.gcn_norms = nn.ModuleList(
+            [
+                nn.BatchNorm1d(n_hidden)
+                for _ in range(n_etypes)
+            ]
+        )
+
+        self.final_fc_layer = nn.Sequential(
+            nn.Linear(n_hidden, n_hidden // 2),
+            nn.ReLU(),
+            nn.Linear(n_hidden // 2, n_classes),
+        )
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        gain = nn.init.calculate_gain("relu")
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_normal_(module.weight, gain=gain)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
+
+    def forward(self, blocks, x):
+        block = blocks[0]
+        x = self.emb_layer(x)
+        x_dst = x[: block.number_of_dst_nodes()]
+
+        relation_outputs = []
+        for index, etype in enumerate(block.etypes):
+            rel_graph = block[etype]
+
+            with rel_graph.local_scope():
+                # Symmetric degree normalization with an explicit self term.
+                src_norm = (
+                    rel_graph.out_degrees()
+                    .to(x.device)
+                    .float()
+                    .add(1.0)
+                    .pow(-0.5)
+                    .unsqueeze(-1)
+                )
+                dst_norm = (
+                    rel_graph.in_degrees()
+                    .to(x.device)
+                    .float()
+                    .add(1.0)
+                    .pow(-0.5)
+                    .unsqueeze(-1)
+                )
+
+                if rel_graph.num_edges() == 0:
+                    h_neigh = torch.zeros_like(x_dst)
+                else:
+                    rel_graph.srcdata["gcn_h"] = x * src_norm
+                    rel_graph.update_all(
+                        fn.copy_u("gcn_h", "gcn_m"),
+                        fn.sum("gcn_m", "gcn_neigh"),
+                    )
+                    h_neigh = rel_graph.dstdata["gcn_neigh"]
+
+                # In a DGL block, the leading source nodes are destination nodes.
+                h = h_neigh + x_dst * src_norm[: x_dst.shape[0]]
+                h = h * dst_norm
+                h = self.gcn_linears[index](h)
+                h = F.relu(h)
+                h = self.gcn_norms[index](h)
+                relation_outputs.append(h)
+
+        h = torch.stack(relation_outputs, dim=1).mean(dim=1)
+        logits = self.final_fc_layer(h)
+
+        # Retain the two-output interface expected by pl_DGA.
+        return logits, logits
+
+
+class pl_DGA(LightningModule):
+    def __init__(self, in_feats, n_hidden, num_nodes, n_classes, n_etypes,
+                 lr=1e-3, weight_decay=5e-4, p=0.3, n_head=1, w=None,
+                 unclear_up=0.1, unclear_down=0.1,
+                 trn_idx=None, val_idx=None, tst_idx=None):
+        super().__init__()
+        self.save_hyperparameters()
+        self.n_etypes = n_etypes
+        self.n_classes = n_classes
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.dga = DGA(in_feats[0], n_hidden, num_nodes, n_classes, n_etypes,  p, n_head, unclear_up, unclear_down)
+        self.trn_idx = trn_idx
+        self.val_idx = val_idx
+        self.tst_idx = tst_idx
+        self.unclear_up = unclear_up
+        self.unclear_down = unclear_down
+        self.register_buffer('w', torch.FloatTensor(w))
+        self.ps = []
+
+    def forward(self, blocks, x):
+        o, emb_out = self.dga(blocks, x)
+        return o, emb_out
+
+    def training_step(self, batch, batch_idx):  # , optimizer_idx):
+        input_nodes, output_nodes, blocks = batch
+        x = blocks[0].srcdata["feat"]
+        y = blocks[-1].dstdata["aux_label"]
+        logits, emb_logits = self(blocks, x)
+        loss = F.cross_entropy(logits, y, self.w)
+        # emb_loss = F.cross_entropy(emb_logits, y, self.w)
+        loss = loss  # + 0.5*emb_loss
+        self.log("trn_loss0", loss, prog_bar=True, on_step=False, on_epoch=True, batch_size=len(output_nodes))
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        input_nodes, output_nodes, blocks = batch
+        x = blocks[0].srcdata["feat"]
+        y = blocks[-1].dstdata["label"]
+
+        logits, emb_logits = self(blocks, x)
+
+        # 严格协议：验证损失只使用验证集节点
+        val_idx = self.val_idx.to(output_nodes.device)
+        val_mask = torch.isin(output_nodes, val_idx)
+
+        if val_mask.any():
+            loss = F.cross_entropy(
+                logits[val_mask],
+                y[val_mask],
+                self.w
+            )
+
+            self.log(
+                "val_loss",
+                loss,
+                prog_bar=True,
+                on_step=False,
+                on_epoch=True,
+                batch_size=int(val_mask.sum().item())
+            )
+
+        # 返回全图预测，供动态分组更新使用
+        return logits, y
+
+
+    def validation_epoch_end(self, outs):
+        """Report training and validation metrics only."""
+        if self.trainer.sanity_checking:
+            return
+
+        y = torch.cat([item[1] for item in outs]).cpu().numpy()
+        prob = (
+            torch.cat([item[0] for item in outs])
+            .softmax(-1)
+            .cpu()
+            .numpy()[:, 1]
+        )
+
+        trn_auc = roc_auc_score(y[self.trn_idx], prob[self.trn_idx])
+        val_auc = roc_auc_score(y[self.val_idx], prob[self.val_idx])
+        trn_aps = average_precision_score(
+            y[self.trn_idx], prob[self.trn_idx]
+        )
+        val_aps = average_precision_score(
+            y[self.val_idx], prob[self.val_idx]
+        )
+
+        self.log(
+            "trn_auc",
+            trn_auc,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log(
+            "val_auc",
+            val_auc,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log(
+            "trn_aps",
+            trn_aps,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log(
+            "val_aps",
+            val_aps,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+        )
+
+
+    def configure_optimizers(self):
+        """Configure the optimizer for the model."""
+        optimizer = torch.optim.Adam(self.dga.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5,
+                                                               verbose=True)
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'monitor': 'val_loss',
+            }
+        }
+
+    def on_train_epoch_end(self):
+        if self.trainer.sanity_checking:
+            return
+        epoch = self.trainer.current_epoch
+        metrics = {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in self.trainer.logged_metrics.items()}
+        formatted_metrics = {k: f"{v:.5f}" for k, v in metrics.items()}
+        print(f"Epoch {epoch}: {formatted_metrics}")
+
+    def inference(self, g, device, batch_size, num_workers, buffer_device=None):
+        """Inference function for the model."""
+        sampler = dgl.dataloading.MultiLayerFullNeighborSampler(1)
+        dataloader = dgl.dataloading.DataLoader(
+            g,
+            torch.arange(g.num_nodes()).to(g.device),
+            sampler,
+            device=device,
+            batch_size=batch_size * 5,
+            shuffle=False,
+            drop_last=False,
+            use_uva=False,
+            num_workers=0,
+        )
+
+        if buffer_device is None:
+            buffer_device = device
+
+        y = torch.zeros(
+            g.num_nodes(),
+            self.n_classes,
+            device=buffer_device,
+        )
+        for input_nodes, output_nodes, blocks in tqdm(dataloader):
+            x = blocks[0].srcdata["feat"]
+            logits, emb_logits = self(blocks, x)
+            y[output_nodes] = logits.to(buffer_device)
+        return y
+
+
+@hydra.main(config_path="configs", config_name="amazon", version_base=None)
+def run(args: DictConfig):
+    # 设置GPU, 设置随机种子，修改模型名称
+    device = torch.device(f'cuda:{args.gpuid}' if torch.cuda.is_available() and args.usegpu else 'cpu')
+    accelerator = 'gpu' if torch.cuda.is_available() and args.usegpu else 'cpu'
+    set_all_seed(args.seed)
+    args.model = f'{args.model}'
+    suffix = '_bin' if args.bin_encoding else ''
+    args.model = args.model + suffix
+
+    # logger设置在读取数据之前，可以保存describe的信息
+    mode = 'offline' if args.nowandb else 'online'
+    wandb_run = wandb.init(project=args.project, config=OmegaConf.to_container(args), mode=mode)
+
+    # 读取数据，输出图的统计信息
+    DATA_PATH = 'data/processed/'
+    graph, split_dict = load_graphs(DATA_PATH + args.dname + '.dgldata')
+    graph = graph[0]
+    y = graph.ndata['label'].cpu().numpy()
+    graph.ndata['aux_label'] = graph.ndata['label']
+    w = [1, 1]
+    n_classes = 2
+
+    n_etypes = len(graph.etypes)
+
+    trn_idx, val_idx, tst_idx = mask_to_index(graph.ndata['trn_msk']), mask_to_index(
+        graph.ndata['val_msk']), mask_to_index(graph.ndata['tst_msk'])
+    # 信息打印
+    print("==" * 20)
+    print("数据名称", args.dname)
+    describe(graph)
+    print("==" * 20)
+    print("超参数设定：")
+    print(OmegaConf.to_yaml(args))
+    print("n_etypes", n_etypes)
+    print("n_classes", n_classes)
+    print("==" * 20)
+
+    if args.bin_encoding:
+        feature = bin_encoding2(graph, trn_idx, n_bins=args.k)
+        #feature = woe_encoding(graph, trn_idx, n_bins=args.k)
+        #feature = iv_encoding(graph, trn_idx, n_bins=args.k)
+
+        
+        
+        graph.ndata['feat'] = torch.FloatTensor(feature.values).contiguous()
+        print("after bin_encoding：", feature.shape)
+        print("==" * 20)
+    else:
+        feature = graph.ndata['feat']
+        graph.ndata['feat'] = feature.contiguous()
+        print("after bin_encoding：", feature.shape)
+
+    in_feats = [graph.ndata['feat'].shape[1]]
+    unclear_up = unclear_down = args.z
+    wandb.log({
+        'unclear_up': unclear_up,
+        'unclear_down': unclear_down
+    })
+    print({'unclear_up': unclear_up, 'unclear_down': unclear_down})
+    # 构建 datamodule 和 modelaccelerator
+    datamodule = DataModule(graph, args.bs, n_classes)
+    model = pl_DGA(in_feats, args.n_hidden, graph.num_nodes(), n_classes=n_classes,
+                   n_etypes=n_etypes, lr=args.lr, weight_decay=args.weight_decay, p=args.p,
+                   n_head=args.n_head, w=w,
+                   unclear_up=unclear_up, unclear_down=unclear_down,
+                   trn_idx=trn_idx, val_idx=val_idx, tst_idx=tst_idx)
+
+    # 进行训练前的设置，timer，checkpoint，early_stopping，logger
+    timer = Timer()
+    checkpoint_callback = ModelCheckpoint(monitor="val_loss", mode='min', save_top_k=1, verbose=False)
+    early_stopping = EarlyStopping('val_loss', verbose=False, mode='min', patience=args.patience)
+    logger = WandbLogger(wandb=wandb_run)
+
+    trainer = Trainer(
+    accelerator=accelerator,
+    devices=1 if accelerator == "cpu" else [args.gpuid],
+    max_epochs=args.max_epochs,
+    logger=logger,
+    enable_progress_bar=False,
+    callbacks=[checkpoint_callback, early_stopping, timer],
+)
+
+    trainer.fit(model, datamodule.train_dataloader(), datamodule.val_dataloader())
+    print(f'training time elapsed {timer.time_elapsed("train"):.2f}s')
+
+    # 读取最优checkpoint 并且进行推理
+    print("Evaluating model in", trainer.checkpoint_callback.best_model_path)
+    model.load_state_dict(torch.load(trainer.checkpoint_callback.best_model_path)['state_dict'])
+    model = model.to(device)
+    with torch.no_grad():
+        model.eval()
+        y_hat = model.inference(graph, device, 5120, 0, "cpu")
+    prob = y_hat.softmax(-1).cpu().numpy()[:, 1]
+    dic = cal_metrics(prob, y, trn_idx, val_idx, tst_idx, verbose=True)
+    wandb.log(dic)
+    wandb.finish()
+    print("===" * 10)
+    print("===" * 10)
+
+
+if __name__ == "__main__":
+    run()
