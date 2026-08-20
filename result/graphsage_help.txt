@@ -1,0 +1,38 @@
+C:\Users\Holly\.venv310\lib\site-packages\lightning_fabric\__init__.py:29: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  __import__("pkg_resources").declare_namespace(__name__)
+C:\Users\Holly\Desktop\FraNAD-GNN\code\code
+train_graphsage_strict is powered by Hydra.
+
+== Configuration groups ==
+Compose your configuration from those groups (group=option)
+
+.ipynb_checkpoints: elliptic_of_amnet-checkpoint, tfinance-checkpoint
+
+
+== Config ==
+Override anything in the config (foo.bar=value)
+
+dname: amazon
+project: dga_reproduction
+model: dga
+bin_encoding: true
+n_head: 1
+n_hidden: 128
+p: 0.3
+k: 4
+z: 0.05
+seed: 321
+bs: 32
+lr: 0.001
+weight_decay: 0.0005
+max_epochs: 10000
+patience: 25
+usegpu: true
+gpuid: 0
+nowandb: false
+
+
+Powered by Hydra (https://hydra.cc)
+Use --hydra-help to view Hydra specific help
+
+

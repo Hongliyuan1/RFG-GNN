@@ -1,0 +1,260 @@
+﻿        self.trn_sampler = trn_sampler
+        self.val_sampler = val_sampler
+        self.batch_size = batch_size
+        self.n_classes = n_classes
+
+    def train_dataloader(self):
+        loader = dgl.dataloading.DataLoader(
+            self.g,
+            self.trn_idx,
+            self.trn_sampler,
+            device="cpu",
+            batch_size=self.batch_size,
+            shuffle=True,
+            drop_last=False,
+            use_uva=False,
+            num_workers=0,
+        )
+        return loader
+
+    def val_dataloader(self):
+        loader = dgl.dataloading.DataLoader(
+            self.g,
+            torch.arange(self.g.num_nodes()),
+            self.val_sampler,
+            device="cpu",
+            batch_size=self.batch_size,
+            shuffle=False,
+            drop_last=False,
+            use_uva=False,
+            num_workers=0,
+        )
+        return loader
+
+
+class DGA(nn.Module):
+    """One-layer mean-aggregation GraphSAGE baseline."""
+
+    def __init__(
+        self,
+        in_feats,
+        n_hidden,
+        num_nodes,
+        n_classes,
+        n_etypes,
+        p=0.3,
+        n_head=1,
+        unclear_up=0.1,
+        unclear_down=0.1,
+    ):
+        super().__init__()
+
+        self.n_hidden = n_hidden
+        self.n_classes = n_classes
+        self.n_etypes = n_etypes
+
+        # Keep the same feature encoder as the main model for a fair comparison.
+        self.emb_layer = nn.Sequential(
+            nn.Dropout(p),
+            nn.Linear(in_feats, n_hidden),
+            nn.BatchNorm1d(n_hidden),
+            nn.ReLU(),
+            nn.Dropout(p),
+            nn.Linear(n_hidden, n_hidden),
+            nn.BatchNorm1d(n_hidden),
+            nn.ReLU(),
+        )
+
+        if n_etypes == 1:
+            intra_conv = IntraConv_single
+        else:
+            intra_conv = IntraConv_multi
+
+        self.convs = nn.ModuleList([
+            intra_conv(
+                n_hidden,
+                n_hidden,
+                "mean",
+                norm=nn.BatchNorm1d(n_hidden),
+                activation=nn.ReLU(),
+                bias=False,
+            )
+            for _ in range(n_etypes)
+        ])
+
+        self.final_fc_layer = nn.Sequential(
+            nn.Linear(n_hidden, n_hidden // 2),
+            nn.ReLU(),
+            nn.Linear(n_hidden // 2, n_classes),
+        )
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        gain = nn.init.calculate_gain("relu")
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_normal_(module.weight, gain=gain)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
+
+    def forward(self, blocks, x):
+        block = blocks[0]
+        x = self.emb_layer(x)
+
+        relation_outputs = []
+        for index, etype in enumerate(block.etypes):
+            relation_outputs.append(
+                self.convs[index](block, x, etype)
+            )
+
+        # Elliptic contains one edge type. Mean fusion also supports
+        # datasets containing more than one relation.
+        h = torch.stack(relation_outputs, dim=1).mean(dim=1)
+        logits = self.final_fc_layer(h)
+
+        # The second return value is retained for compatibility with
+        # the existing Lightning training wrapper.
+        return logits, logits
+
+
+class pl_DGA(LightningModule):
+    def __init__(self, in_feats, n_hidden, num_nodes, n_classes, n_etypes,
+                 lr=1e-3, weight_decay=5e-4, p=0.3, n_head=1, w=None,
+                 unclear_up=0.1, unclear_down=0.1,
+                 trn_idx=None, val_idx=None, tst_idx=None):
+        super().__init__()
+        self.save_hyperparameters()
+        self.n_etypes = n_etypes
+        self.n_classes = n_classes
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.dga = DGA(in_feats[0], n_hidden, num_nodes, n_classes, n_etypes,  p, n_head, unclear_up, unclear_down)
+        self.trn_idx = trn_idx
+        self.val_idx = val_idx
+        self.tst_idx = tst_idx
+        self.unclear_up = unclear_up
+        self.unclear_down = unclear_down
+        self.register_buffer('w', torch.FloatTensor(w))
+        self.ps = []
+
+    def forward(self, blocks, x):
+        o, emb_out = self.dga(blocks, x)
+        return o, emb_out
+
+    def training_step(self, batch, batch_idx):  # , optimizer_idx):
+        input_nodes, output_nodes, blocks = batch
+        x = blocks[0].srcdata["feat"]
+        y = blocks[-1].dstdata["aux_label"]
+        logits, emb_logits = self(blocks, x)
+        loss = F.cross_entropy(logits, y, self.w)
+        # emb_loss = F.cross_entropy(emb_logits, y, self.w)
+        loss = loss  # + 0.5*emb_loss
+        self.log("trn_loss0", loss, prog_bar=True, on_step=False, on_epoch=True, batch_size=len(output_nodes))
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        input_nodes, output_nodes, blocks = batch
+        x = blocks[0].srcdata["feat"]
+        y = blocks[-1].dstdata["label"]
+
+        logits, emb_logits = self(blocks, x)
+
+        # 涓ユ牸鍗忚锛氶獙璇佹崯澶卞彧浣跨敤楠岃瘉闆嗚妭鐐?
+        val_idx = self.val_idx.to(output_nodes.device)
+        val_mask = torch.isin(output_nodes, val_idx)
+
+        if val_mask.any():
+            loss = F.cross_entropy(
+                logits[val_mask],
+                y[val_mask],
+                self.w
+            )
+
+            self.log(
+                "val_loss",
+                loss,
+                prog_bar=True,
+                on_step=False,
+                on_epoch=True,
+                batch_size=int(val_mask.sum().item())
+            )
+
+        # 杩斿洖鍏ㄥ浘棰勬祴锛屼緵鍔ㄦ€佸垎缁勬洿鏂颁娇鐢?
+        return logits, y
+
+
+    def validation_epoch_end(self, outs):
+        """Report training and validation metrics only."""
+        if self.trainer.sanity_checking:
+            return
+
+        y = torch.cat([item[1] for item in outs]).cpu().numpy()
+        prob = (
+            torch.cat([item[0] for item in outs])
+            .softmax(-1)
+            .cpu()
+            .numpy()[:, 1]
+        )
+
+        trn_auc = roc_auc_score(y[self.trn_idx], prob[self.trn_idx])
+        val_auc = roc_auc_score(y[self.val_idx], prob[self.val_idx])
+        trn_aps = average_precision_score(
+            y[self.trn_idx], prob[self.trn_idx]
+        )
+        val_aps = average_precision_score(
+            y[self.val_idx], prob[self.val_idx]
+        )
+
+        self.log(
+            "trn_auc",
+            trn_auc,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log(
+            "val_auc",
+            val_auc,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log(
+            "trn_aps",
+            trn_aps,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log(
+            "val_aps",
+            val_aps,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+        )
+
+
+    def configure_optimizers(self):
+        """Configure the optimizer for the model."""
+        optimizer = torch.optim.Adam(self.dga.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5,
+                                                               verbose=True)
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'monitor': 'val_loss',
+            }
+        }
+
+    def on_train_epoch_end(self):
+        if self.trainer.sanity_checking:
+            return
+        epoch = self.trainer.current_epoch
+        metrics = {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in self.trainer.logged_metrics.items()}
+        formatted_metrics = {k: f"{v:.5f}" for k, v in metrics.items()}
+        print(f"Epoch {epoch}: {formatted_metrics}")
+

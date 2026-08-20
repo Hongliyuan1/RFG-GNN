@@ -1,0 +1,19 @@
+﻿32: class IntraConv_single(nn.Module):
+33:     def __init__(self,
+74:     def forward(self, graph, feat, etype=None, edge_weight=None):
+133: class IntraConv_multi(nn.Module):
+134:     def __init__(self,
+175:     def forward(self, graph, feat, etype, edge_weight=None):
+248: class DataModule(LightningDataModule):
+249:     def __init__(self, graph, batch_size, n_classes):
+295: class DGA(nn.Module):
+298:     def __init__(
+361:     def forward(self, blocks, x):
+381: class pl_DGA(LightningModule):
+382:     def __init__(self, in_feats, n_hidden, num_nodes, n_classes, n_etypes,
+392:         self.dga = DGA(in_feats[0], n_hidden, num_nodes, n_classes, n_etypes,  p, n_head, unclear_up, unclear_down)
+401:     def forward(self, blocks, x):
+557:     args.model = f'{args.model}'
+559:     args.model = args.model + suffix
+613:     model = pl_DGA(in_feats, args.n_hidden, graph.num_nodes(), n_classes=n_classes,
+640:     model = model.to(device)

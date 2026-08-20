@@ -1,0 +1,102 @@
+﻿  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:2:import os
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:3:import warnings
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:4:# dgl
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:5:import dgl
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:6:import hydra
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:7:# 机器学习
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:8:import numpy as np
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:9:# torch
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:10:import torch
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:11:import torch.nn.functional as F
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:12:# 工程化、自建和其他
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:13:import wandb
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:14:from dgl import function as fn
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:15:from dgl.data.utils import load_graphs
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:16:from dgl.utils import expand_as_pair, dgl_warning
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:17:from omegaconf import DictConfig, OmegaConf
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:18:# pl
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:19:from pytorch_lightning import (LightningDataModule, LightningModule, Trainer)
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:20:from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, Timer
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:21:from pytorch_lightning.loggers.wandb import WandbLogger
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:22:from sklearn.metrics import (roc_auc_score, average_precision_score)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:23:from torch import nn
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:24:from tqdm import tqdm
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:25:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:26:from myutils import describe, mask_to_index, set_all_seed, cal_metrics, bin_encoding2,woe_encoding,iv_encoding
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:27:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:28:warnings.filterwarnings("ignore")
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:29:print(os.getcwd())
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:30:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:31:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:32:class IntraConv_single(nn.Module):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:33:    def __init__(self,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:34:                 in_feats,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:35:                 out_feats,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:36:                 aggregator_type,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:432:            )
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:433:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:434:            self.log(
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:435:                "val_loss",
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:436:                loss,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:437:                prog_bar=True,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:438:                on_step=False,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:439:                on_epoch=True,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:440:                batch_size=int(val_mask.sum().item())
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:441:            )
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:442:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:443:        # 返回全图预测，供动态分组更新使用
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:444:        return logits, y
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:445:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:496:        )
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:497:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:498:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:499:    def configure_optimizers(self):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:500:        """Configure the optimizer for the model."""
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:501:        optimizer = torch.optim.Adam(self.dga.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:502:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:503:        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:504:                                                               verbose=True)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:505:        return {
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:506:            'optimizer': optimizer,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:507:            'lr_scheduler': {
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:508:                'scheduler': scheduler,
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:509:                'monitor': 'val_loss',
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:510:            }
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:511:        }
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:512:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:513:    def on_train_epoch_end(self):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:514:        if self.trainer.sanity_checking:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:515:            return
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:516:        epoch = self.trainer.current_epoch
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:517:        metrics = {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in self.trainer.logged_metrics.items()}
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:518:        formatted_metrics = {k: f"{v:.5f}" for k, v in metrics.items()}
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:519:        print(f"Epoch {epoch}: {formatted_metrics}")
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:587:    print("==" * 20)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:588:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:589:    if args.bin_encoding:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:590:        feature = bin_encoding2(graph, trn_idx, n_bins=args.k)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:591:        #feature = woe_encoding(graph, trn_idx, n_bins=args.k)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:592:        #feature = iv_encoding(graph, trn_idx, n_bins=args.k)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:593:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:594:        
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:595:        
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:596:        graph.ndata['feat'] = torch.FloatTensor(feature.values).contiguous()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:597:        print("after bin_encoding：", feature.shape)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:598:        print("==" * 20)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:599:    else:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:600:        feature = graph.ndata['feat']
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:618:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:619:    # 进行训练前的设置，timer，checkpoint，early_stopping，logger
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:620:    timer = Timer()
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:621:    checkpoint_callback = ModelCheckpoint(monitor="val_loss", mode='min', save_top_k=1, verbose=False)
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:622:    early_stopping = EarlyStopping('val_loss', verbose=False, mode='min', patience=args.patience)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:623:    logger = WandbLogger(wandb=wandb_run)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:624:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:625:    trainer = Trainer(
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:626:    accelerator=accelerator,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:627:    devices=1 if accelerator == "cpu" else [args.gpuid],
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:628:    max_epochs=args.max_epochs,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:629:    logger=logger,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:630:    enable_progress_bar=False,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:631:    callbacks=[checkpoint_callback, early_stopping, timer],
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:632:)

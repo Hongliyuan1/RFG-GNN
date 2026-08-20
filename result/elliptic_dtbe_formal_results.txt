@@ -1,0 +1,42 @@
+Elliptic DTBE 正式实验
+
+实验编号：DTBE_seed42
+编码方式：DTBE
+随机种子：42
+最大轮数：50
+早停耐心值：25
+分箱数：4
+设备：CPU
+训练时间：502.33秒
+实际结束epoch：36
+最佳checkpoint：epoch=11-step=4008.ckpt
+
+Final Train:
+AP=0.99050
+AUC=0.99776
+
+Final Validation:
+AP=0.76847
+AUC=0.86577
+Macro-F1=0.85325
+G-Mean=0.79949
+Precision=0.93869
+Recall=0.62011
+
+Final Test:
+AP=0.80444
+AUC=0.93528
+Macro-F1=0.86052
+G-Mean=0.84433
+Precision=0.75336
+Recall=0.72484
+
+完整日志：
+elliptic_dtbe_seed42_50ep.log
+
+WandB离线目录：
+wandb\offline-run-20260725_121839-7zzwv1kc
+
+说明：
+正式结果采用加载最佳验证集checkpoint后的final_tst指标，
+不采用最后一轮的普通tst_aps和tst_auc。

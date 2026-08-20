@@ -1,0 +1,63 @@
+Elliptic DTBE 五随机种子正式实验汇总
+
+统一设置：
+编码方式：DTBE
+Seeds：42、43、44、45、46
+最大训练轮数：50
+Patience：25
+分箱数量：4
+设备：CPU
+正式指标：加载最佳验证集checkpoint后的final_tst结果
+
+Seed 42:
+AP=0.80444
+AUC=0.93528
+Macro-F1=0.86052
+G-Mean=0.84433
+Precision=0.75336
+Recall=0.72484
+
+Seed 43:
+AP=0.80179
+AUC=0.94035
+Macro-F1=0.87454
+G-Mean=0.85369
+Precision=0.79286
+Recall=0.73869
+
+Seed 44:
+AP=0.81896
+AUC=0.94809
+Macro-F1=0.88416
+G-Mean=0.84757
+Precision=0.84957
+Recall=0.72484
+
+Seed 45:
+AP=0.80408
+AUC=0.94424
+Macro-F1=0.86235
+G-Mean=0.84113
+Precision=0.76726
+Recall=0.71837
+
+Seed 46:
+AP=0.80360
+AUC=0.93528
+Macro-F1=0.86868
+G-Mean=0.85139
+Precision=0.77304
+Recall=0.73592
+
+五次均值 ± 样本标准差：
+AP=0.80657 ± 0.00700
+AUC=0.94065 ± 0.00561
+Macro-F1=0.87005 ± 0.00963
+G-Mean=0.84762 ± 0.00510
+Precision=0.78722 ± 0.03763
+Recall=0.72853 ± 0.00849
+
+论文百分数格式：
+AP=80.66% ± 0.70%
+AUC=94.06% ± 0.56%
+Macro-F1=87.01% ± 0.96%

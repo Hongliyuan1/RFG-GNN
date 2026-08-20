@@ -1,0 +1,223 @@
+﻿  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:28:warnings.filterwarnings("ignore")
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:29:print(os.getcwd())
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:30:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:31:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:32:class IntraConv_single(nn.Module):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:33:    def __init__(self,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:34:                 in_feats,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:35:                 out_feats,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:36:                 aggregator_type,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:37:                 feat_drop=0.,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:38:                 add_self=True,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:39:                 bias=True,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:40:                 norm=None,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:41:                 activation=None):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:42:        super(IntraConv_single, self).__init__()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:43:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:44:        self._in_src_feats, self._in_dst_feats = expand_as_pair(in_feats)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:45:        self._out_feats = out_feats
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:46:        self._aggre_type = aggregator_type
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:47:        self.norm = norm
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:60:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:61:    def _compatibility_check(self):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:62:        """Address the backward compatibility issue brought by #2747"""
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:63:        if not hasattr(self, 'bias'):
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:64:            dgl_warning("You are loading a GraphSAGE model trained from a old version of DGL, "
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:65:                        "DGL automatically convert it to be compatible with latest version.")
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:66:            bias = self.fc_neigh.bias
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:67:            self.fc_neigh.bias = None
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:68:            if hasattr(self, 'fc_self'):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:69:                if bias is not None:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:70:                    bias = bias + self.fc_self.bias
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:71:                    self.fc_self.bias = None
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:72:            self.bias = bias
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:73:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:74:    def forward(self, graph, feat, etype=None, edge_weight=None):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:75:        self._compatibility_check()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:76:        with graph.local_scope():
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:77:            if isinstance(feat, tuple):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:78:                feat_src = self.feat_drop(feat[0])
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:79:                feat_dst = self.feat_drop(feat[1])
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:80:            else:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:81:                feat_src = feat_dst = self.feat_drop(feat)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:82:                if graph.is_block:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:83:                    feat_dst = feat_src[:graph.number_of_dst_nodes()]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:84:            msg_fn = fn.copy_u('h', 'm')
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:85:            if edge_weight is not None:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:86:                assert edge_weight.shape[0] == graph.number_of_edges()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:87:                graph.srcdata['degree'] = torch.ones((graph.num_src_nodes(), 1)).to(feat.device)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:88:                graph.edata['_edge_weight'] = edge_weight
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:89:                msg_fn1 = fn.u_mul_e('h', '_edge_weight', 'm')
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:129:                rst = self.norm(rst)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:130:            return rst  # , h_self
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:131:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:132:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:133:class IntraConv_multi(nn.Module):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:134:    def __init__(self,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:135:                 in_feats,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:136:                 out_feats,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:137:                 aggregator_type,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:138:                 feat_drop=0.,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:139:                 add_self=True,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:140:                 bias=True,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:141:                 norm=None,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:142:                 activation=None):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:143:        super(IntraConv_multi, self).__init__()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:144:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:145:        self._in_src_feats, self._in_dst_feats = expand_as_pair(in_feats)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:146:        self._out_feats = out_feats
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:147:        self._aggre_type = aggregator_type
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:148:        self.norm = norm
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:161:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:162:    def _compatibility_check(self):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:163:        """Address the backward compatibility issue brought by #2747"""
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:164:        if not hasattr(self, 'bias'):
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:165:            dgl_warning("You are loading a GraphSAGE model trained from a old version of DGL, "
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:166:                        "DGL automatically convert it to be compatible with latest version.")
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:167:            bias = self.fc_neigh.bias
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:168:            self.fc_neigh.bias = None
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:169:            if hasattr(self, 'fc_self'):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:170:                if bias is not None:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:171:                    bias = bias + self.fc_self.bias
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:172:                    self.fc_self.bias = None
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:173:            self.bias = bias
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:174:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:175:    def forward(self, graph, feat, etype, edge_weight=None):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:176:        self._compatibility_check()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:177:        with graph.local_scope():
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:178:            if isinstance(feat, tuple):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:179:                feat_src = self.feat_drop(feat[0])
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:180:                feat_dst = self.feat_drop(feat[1])
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:181:            else:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:182:                feat_src = feat_dst = self.feat_drop(feat)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:183:                if graph.is_block:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:184:                    feat_dst = feat_src[:graph.number_of_dst_nodes()]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:185:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:186:            if edge_weight is not None:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:187:                assert edge_weight.shape[0] == graph.number_of_edges(etype=etype)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:188:                graph.srcdata['degree'] = torch.ones((graph.num_src_nodes(), 1)).to(feat.device)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:189:                graph.edata['_edge_weight'] = {etype: edge_weight}
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:190:                msg_fn1 = fn.u_mul_e('h', '_edge_weight', 'm')
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:244:            return rst  # , h_self
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:245:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:246:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:247:# 构建dataloader
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:248:class DataModule(LightningDataModule):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:249:    def __init__(self, graph, batch_size, n_classes):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:250:        super().__init__()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:251:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:252:        trn_sampler = dgl.dataloading.NeighborSampler(
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:253:            [-1]  # , prefetch_node_feats=["feat"], prefetch_labels=["label"]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:254:        )
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:255:        val_sampler = dgl.dataloading.NeighborSampler(
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:256:            [-1]  # , prefetch_node_feats=["feat"], prefetch_labels=["label"]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:257:        )
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:258:        self.g = graph
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:259:        self.trn_idx, self.val_idx, self.tst_idx = mask_to_index(graph.ndata['trn_msk']), mask_to_index(
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:260:            graph.ndata['val_msk']), mask_to_index(graph.ndata['tst_msk'])
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:261:        self.trn_sampler = trn_sampler
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:262:        self.val_sampler = val_sampler
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:263:        self.batch_size = batch_size
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:291:        )
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:292:        return loader
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:293:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:294:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:295:class DGA(nn.Module):
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:296:    """One-layer mean-aggregation GraphSAGE baseline."""
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:297:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:298:    def __init__(
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:299:        self,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:300:        in_feats,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:301:        n_hidden,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:302:        num_nodes,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:303:        n_classes,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:304:        n_etypes,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:305:        p=0.3,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:306:        n_head=1,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:307:        unclear_up=0.1,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:308:        unclear_down=0.1,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:309:    ):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:310:        super().__init__()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:311:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:357:                nn.init.xavier_normal_(module.weight, gain=gain)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:358:                if module.bias is not None:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:359:                    nn.init.constant_(module.bias, 0)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:360:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:361:    def forward(self, blocks, x):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:362:        block = blocks[0]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:363:        x = self.emb_layer(x)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:364:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:365:        relation_outputs = []
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:366:        for index, etype in enumerate(block.etypes):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:367:            relation_outputs.append(
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:368:                self.convs[index](block, x, etype)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:369:            )
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:370:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:371:        # Elliptic contains one edge type. Mean fusion also supports
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:372:        # datasets containing more than one relation.
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:373:        h = torch.stack(relation_outputs, dim=1).mean(dim=1)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:374:        logits = self.final_fc_layer(h)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:375:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:376:        # The second return value is retained for compatibility with
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:377:        # the existing Lightning training wrapper.
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:378:        return logits, logits
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:379:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:380:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:381:class pl_DGA(LightningModule):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:382:    def __init__(self, in_feats, n_hidden, num_nodes, n_classes, n_etypes,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:383:                 lr=1e-3, weight_decay=5e-4, p=0.3, n_head=1, w=None,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:384:                 unclear_up=0.1, unclear_down=0.1,
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:385:                 trn_idx=None, val_idx=None, tst_idx=None):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:386:        super().__init__()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:387:        self.save_hyperparameters()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:388:        self.n_etypes = n_etypes
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:389:        self.n_classes = n_classes
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:390:        self.lr = lr
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:391:        self.weight_decay = weight_decay
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:392:        self.dga = DGA(in_feats[0], n_hidden, num_nodes, n_classes, n_etypes,  p, n_head, unclear_up, unclear_down)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:393:        self.trn_idx = trn_idx
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:394:        self.val_idx = val_idx
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:395:        self.tst_idx = tst_idx
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:396:        self.unclear_up = unclear_up
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:397:        self.unclear_down = unclear_down
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:398:        self.register_buffer('w', torch.FloatTensor(w))
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:399:        self.ps = []
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:400:
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:401:    def forward(self, blocks, x):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:402:        o, emb_out = self.dga(blocks, x)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:403:        return o, emb_out
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:404:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:405:    def training_step(self, batch, batch_idx):  # , optimizer_idx):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:406:        input_nodes, output_nodes, blocks = batch
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:407:        x = blocks[0].srcdata["feat"]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:408:        y = blocks[-1].dstdata["aux_label"]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:409:        logits, emb_logits = self(blocks, x)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:410:        loss = F.cross_entropy(logits, y, self.w)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:411:        # emb_loss = F.cross_entropy(emb_logits, y, self.w)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:412:        loss = loss  # + 0.5*emb_loss
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:413:        self.log("trn_loss0", loss, prog_bar=True, on_step=False, on_epoch=True, batch_size=len(output_nodes))
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:414:        return loss
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:415:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:416:    def validation_step(self, batch, batch_idx):
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:553:    # 设置GPU, 设置随机种子，修改模型名称
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:554:    device = torch.device(f'cuda:{args.gpuid}' if torch.cuda.is_available() and args.usegpu else 'cpu')
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:555:    accelerator = 'gpu' if torch.cuda.is_available() and args.usegpu else 'cpu'
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:556:    set_all_seed(args.seed)
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:557:    args.model = f'{args.model}'
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:558:    suffix = '_bin' if args.bin_encoding else ''
+> C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:559:    args.model = args.model + suffix
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:560:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:561:    # logger设置在读取数据之前，可以保存describe的信息
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:562:    mode = 'offline' if args.nowandb else 'online'
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:563:    wandb_run = wandb.init(project=args.project, config=OmegaConf.to_container(args), mode=mode)
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:564:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:565:    # 读取数据，输出图的统计信息
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:566:    DATA_PATH = '../../data/processed/'
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:567:    graph, split_dict = load_graphs(DATA_PATH + args.dname + '.dgldata')
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:568:    graph = graph[0]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:569:    y = graph.ndata['label'].cpu().numpy()
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:570:    graph.ndata['aux_label'] = graph.ndata['label']
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:571:    w = [1, 1]
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:572:    n_classes = 2
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:573:
+  C:\Users\Holly\Desktop\FraNAD-GNN\code\code\train_graphsage_strict.py:574:    n_etypes = len(graph.etypes)

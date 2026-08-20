@@ -1,0 +1,37 @@
+20:from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, Timer
+26:from myutils import describe, mask_to_index, set_all_seed, cal_metrics, bin_encoding2,woe_encoding,iv_encoding
+32:class IntraConv_single(nn.Module):
+64:            dgl_warning("You are loading a GraphSAGE model trained from a old version of DGL, "
+74:    def forward(self, graph, feat, etype=None, edge_weight=None):
+133:class IntraConv_multi(nn.Module):
+165:            dgl_warning("You are loading a GraphSAGE model trained from a old version of DGL, "
+175:    def forward(self, graph, feat, etype, edge_weight=None):
+248:class DataModule(LightningDataModule):
+249:    def __init__(self, graph, batch_size, n_classes):
+264:        self.n_classes = n_classes
+295:class DGA(nn.Module):
+296:    """One-layer mean-aggregation GraphSAGE baseline."""
+303:        n_classes,
+313:        self.n_classes = n_classes
+348:            nn.Linear(n_hidden // 2, n_classes),
+361:    def forward(self, blocks, x):
+381:class pl_DGA(LightningModule):
+382:    def __init__(self, in_feats, n_hidden, num_nodes, n_classes, n_etypes,
+389:        self.n_classes = n_classes
+392:        self.dga = DGA(in_feats[0], n_hidden, num_nodes, n_classes, n_etypes,  p, n_head, unclear_up, unclear_down)
+401:    def forward(self, blocks, x):
+435:                "val_loss",
+461:        val_auc = roc_auc_score(y[self.val_idx], prob[self.val_idx])
+477:            "val_auc",
+478:            val_auc,
+509:                'monitor': 'val_loss',
+541:            self.n_classes,
+572:    n_classes = 2
+586:    print("n_classes", n_classes)
+590:        feature = bin_encoding2(graph, trn_idx, n_bins=args.k)
+591:        #feature = woe_encoding(graph, trn_idx, n_bins=args.k)
+592:        #feature = iv_encoding(graph, trn_idx, n_bins=args.k)
+612:    datamodule = DataModule(graph, args.bs, n_classes)
+613:    model = pl_DGA(in_feats, args.n_hidden, graph.num_nodes(), n_classes=n_classes,
+621:    checkpoint_callback = ModelCheckpoint(monitor="val_loss", mode='min', save_top_k=1, verbose=False)
+622:    early_stopping = EarlyStopping('val_loss', verbose=False, mode='min', patience=args.patience)

@@ -1,0 +1,66 @@
+﻿    # logger璁剧疆鍦ㄨ鍙栨暟鎹箣鍓嶏紝鍙互淇濆瓨describe鐨勪俊鎭?
+    mode = 'offline' if args.nowandb else 'online'
+    wandb_run = wandb.init(project=args.project, config=OmegaConf.to_container(args), mode=mode)
+
+    # 璇诲彇鏁版嵁锛岃緭鍑哄浘鐨勭粺璁′俊鎭?
+    DATA_PATH = '../../data/processed/'
+    graph, split_dict = load_graphs(DATA_PATH + args.dname + '.dgldata')
+    graph = graph[0]
+    y = graph.ndata['label'].cpu().numpy()
+    graph.ndata['aux_label'] = graph.ndata['label']
+    w = [1, 1]
+    n_classes = 2
+
+    n_etypes = len(graph.etypes)
+
+    trn_idx, val_idx, tst_idx = mask_to_index(graph.ndata['trn_msk']), mask_to_index(
+        graph.ndata['val_msk']), mask_to_index(graph.ndata['tst_msk'])
+    # 淇℃伅鎵撳嵃
+    print("==" * 20)
+    print("鏁版嵁鍚嶇О", args.dname)
+    describe(graph)
+    print("==" * 20)
+    print("瓒呭弬鏁拌瀹氾細")
+    print(OmegaConf.to_yaml(args))
+    print("n_etypes", n_etypes)
+    print("n_classes", n_classes)
+    print("==" * 20)
+
+    if args.bin_encoding:
+        feature = bin_encoding2(graph, trn_idx, n_bins=args.k)
+        #feature = woe_encoding(graph, trn_idx, n_bins=args.k)
+        #feature = iv_encoding(graph, trn_idx, n_bins=args.k)
+
+        
+        
+        graph.ndata['feat'] = torch.FloatTensor(feature.values).contiguous()
+        print("after bin_encoding锛?, feature.shape)
+        print("==" * 20)
+    else:
+        feature = graph.ndata['feat']
+        graph.ndata['feat'] = feature.contiguous()
+        print("after bin_encoding锛?, feature.shape)
+
+    in_feats = [graph.ndata['feat'].shape[1]]
+    unclear_up = unclear_down = args.z
+    wandb.log({
+        'unclear_up': unclear_up,
+        'unclear_down': unclear_down
+    })
+    print({'unclear_up': unclear_up, 'unclear_down': unclear_down})
+    # 鏋勫缓 datamodule 鍜?modelaccelerator
+    datamodule = DataModule(graph, args.bs, n_classes)
+    model = pl_DGA(in_feats, args.n_hidden, graph.num_nodes(), n_classes=n_classes,
+                   n_etypes=n_etypes, lr=args.lr, weight_decay=args.weight_decay, p=args.p,
+                   n_head=args.n_head, w=w,
+                   unclear_up=unclear_up, unclear_down=unclear_down,
+                   trn_idx=trn_idx, val_idx=val_idx, tst_idx=tst_idx)
+
+    # 杩涜璁粌鍓嶇殑璁剧疆锛宼imer锛宑heckpoint锛宔arly_stopping锛宭ogger
+    timer = Timer()
+    checkpoint_callback = ModelCheckpoint(monitor="val_loss", mode='min', save_top_k=1, verbose=False)
+    early_stopping = EarlyStopping('val_loss', verbose=False, mode='min', patience=args.patience)
+    logger = WandbLogger(wandb=wandb_run)
+
+    trainer = Trainer(
+    accelerator=accelerator,
